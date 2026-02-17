@@ -1,0 +1,13 @@
+Requirment for this project :-
+
+pandas
+numpy
+matplotlib
+seaborn
+plotly
+streamlit
+emoji
+wordcloud
+urlextract
+
+python=3.11
