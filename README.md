@@ -53,7 +53,6 @@ WhatsAppChatAnalysis/
 │
 ├── app.py
 ├── analysis.py
-├── preprocessor.py
 ├── requirements.txt
 ├── images/
 └── README.md
