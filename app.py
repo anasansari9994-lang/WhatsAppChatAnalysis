@@ -5,7 +5,6 @@ from analysis import fetch_datas
 import analysis
 import matplotlib.pyplot as plt
 import plotly.express as px
-
 st.title("Whatsapp Chat Analysis")
 
 def preprocessing(raw_text: str) -> pd.DataFrame:
