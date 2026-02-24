@@ -58,6 +58,21 @@ if uploaded_media is not None:
     st.dataframe(df.head())
     users = selectuser(df)
 
+    @st.cache_resource
+    def load_model():
+        model = analysis.HybridToxicitymodel(
+            model_a = "cardiffnlp/twitter-xlm-roberta-base-offensive",
+            model_b = "l3cube-pune/hinglish-toxic-bert"
+        )
+        model.eval()
+        return model
+
+    toxicity_model = load_model()
+
+    toxicity_dataframe = analysis.toxity_dataframe_creation(df, toxicity_model)
+
+    
+
     selected_user = st.sidebar.selectbox("Select User" , users)
     st.write(f"Selected user: {selected_user}")
 
@@ -150,4 +165,12 @@ if uploaded_media is not None:
         st.header(f"Monthly chat activity for {selected_user}" , anchor=None)
         analysis.mostactive_monthly(selected_user , df)
 
-        
+        column1 , column2 = st.columns(2)
+        with column1:
+            st.header(f"Toxicity Analysis for {selected_user}", anchor=None)
+            analysis.toxicity_analysis(selected_user, toxicity_dataframe)
+        with column2:
+            st.header(f"TOxicity Percentage for {selected_user}", anchor=None)
+            st.title(analysis.toxicity_analysis(selected_user, toxicity_dataframe)[0])
+
+    

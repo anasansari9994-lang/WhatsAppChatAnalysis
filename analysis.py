@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import emoji
 from wordcloud import WordCloud , STOPWORDS
+from transformers import AutoTokenizer , AutoModelForSequenceClassification
 import plotly.express as px
 import seaborn as sns
 
@@ -172,3 +173,106 @@ def mostactive_monthly(selected_user, df):
     )
     fig.update_layout(xaxis_title='Date', yaxis_title='Number of Messages')
     st.plotly_chart(fig, use_container_width=True)
+
+ #Txic detection model
+class HybridToxicitymodel(nn.Module):
+    def __init__(self , model_a , model_b):
+        super().__init__()
+
+        self.multilingualModel = AutoModelForSequenceClassification.from_pretrained(model_a)
+        self.HinglishModel = AutoModelForSequenceClassification.from_pretrained(model_b)
+
+        self.model_a_tokenizer = AutoTokenizer.from_pretrained(model_a)
+        self.model_b_tokenizer = AutoTokenizer.from_pretrained(model_b)
+
+
+        self.multilingualModel.eval()
+        self.HinglishModel.eval()
+
+    def forward(self, input_a , input_b):
+
+        with torch.no_grad():
+
+            output_a = self.multilingualModel(**input_a)
+            output_b = self.HinglishModel(**input_b)
+
+            logits_a = output_a.logits
+            logits_b = output_b.logits
+
+            
+            final_logits = (logits_a + logits_b) / 2
+
+            probs = torch.softmax(final_logits, dim=1)
+
+            predicted_labels = torch.argmax(probs, dim=1)
+            confidence_scores = torch.max(probs, dim=1).values
+            
+            return {
+                "final_logits": final_logits,
+                "probs": probs,
+                "predicted_labels": predicted_labels,
+                "confidence_scores": confidence_scores
+            }
+
+
+def toxity_dataframe_creation(model , df , batch_size = 32):
+    df = df[df['message'] != "<Media omitted>"]
+    df = df[df['message'] != "This message was deleted"]
+
+    messages = df['message'].fillna("").tolist()
+
+    input_a = model.model_a_tokenizer(messages,
+                                        padding=True,
+                                        truncation=True,
+                                        return_tensors='pt',
+                                        max_length=128)
+    input_b = model.model_b_tokenizer(messages,
+                                        padding=True,
+                                        truncation=True,
+                                        return_tensors='pt',
+                                        max_length=128)
+    
+    labels_list = []
+    confidence_list = []
+    for i in range(0 , len(messages) , batch_size):
+        with torch.no_grad():
+            batch_input_a = {key: val[i:i+batch_size] for key, val in input_a.items()}
+            batch_input_b = {key: val[i:i+batch_size] for key, val in input_b.items()}
+
+            labels, confidence = model(batch_input_a, batch_input_b)
+
+        labels_list.extend(labels.cpu().numpy())
+        confidence_list.extend(confidence.cpu().numpy())
+
+    final_labels = torch.cat(labels_list).numpy()
+    final_confidence = torch.cat(confidence_list).numpy()
+
+    df['toxicity_label'] = final_labels
+    df['toxicity_confidence'] = final_confidence
+            
+    return df
+
+def toxicity_analysis(selected_user, df):
+    if selected_user != "Overall":
+        df = df[df['user'] == selected_user]
+
+    toxicity_counts = df['toxicity_label'].value_counts().reset_index()
+    toxicity_counts.columns = ['Toxicity Label', 'Count']
+    toxicity_counts['Percentage'] = (toxicity_counts['Count'] / toxicity_counts['Count'].sum()) * 100
+
+    fig = px.bar(
+        toxicity_counts,
+        x='Toxicity Label',
+        y='Count',
+        title=f'Toxicity Analysis for {selected_user}',
+        text='Percentage'
+    )
+
+    fig.update_layout(xaxis_title='Toxicity Label', yaxis_title='Number of Messages')
+    st.plotly_chart(fig, use_container_width=True)
+    return toxicity_counts['Percentage'].tolist()
+
+def analysis_toxicity(df , selected_user):
+    grouped = df[df['user'] == selected_user]['toxicity_label'].value_counts()
+    most_toxicuser = grouped.largest(5)
+    return most_toxicuser
