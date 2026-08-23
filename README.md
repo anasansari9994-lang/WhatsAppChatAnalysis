@@ -4,6 +4,9 @@ An end-to-end WhatsApp Chat Analysis Web Application built using Python, Pandas,
 #NLP Prject overview
 This project also contain NLP releated feautere where i fine tune bert multilingual model for toxicity and sentiment detection for every user or overall and then you can see what user are most sad in talking or talk toxicity words in hinglish and english both work perfectly fine using hugingface trainer (full fine tune). and i also use custom class of giving manual weight for model in sentiment analysis becaseu i use two model english and higlish seperately.
 
+The docker image full run in your pc:-
+https://hub.docker.com/r/anas0308/whatsapp-chat-analyzer
+
 this is the first impression page where you have to uploade the chat txt file (from whatsapp)
 ![alt text](image.png)
 
